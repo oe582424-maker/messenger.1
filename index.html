@@ -27,43 +27,43 @@
       -webkit-tap-highlight-color: transparent;
       user-select: none;
       -webkit-user-select: none;
+      box-sizing: border-box;
     }
     input, textarea {
       user-select: auto;
       -webkit-user-select: auto;
     }
     .custom-scrollbar::-webkit-scrollbar {
-      width: 5px;
+      width: 4px;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
       background: #334155;
       border-radius: 4px;
     }
+    /* Safe Area Padding for Modern Smartphones */
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom, 1rem);
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen h-dvh flex flex-col font-sans antialiased overflow-hidden selection:bg-rose-600 selection:text-white">
+<body class="bg-slate-950 text-slate-100 h-[100dvh] w-screen flex flex-col font-sans antialiased overflow-hidden selection:bg-rose-600 selection:text-white">
 
-  <!-- MAIN APP CONTAINER -->
+  <!-- APP WRAPPER -->
   <div id="app" class="flex-1 flex flex-col max-w-7xl mx-auto w-full h-full border-x border-slate-800/60 shadow-2xl relative overflow-hidden md:my-auto md:max-h-[96dvh] md:rounded-3xl md:border">
 
-    <!-- HEADER -->
-    <header id="main-header" class="hidden sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-2 cursor-pointer" id="header-logo-btn">
+    <!-- HEADER (Appears after login) -->
+    <header id="main-header" class="hidden sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-600 to-rose-900 flex items-center justify-center font-black text-white text-xs shadow-md shadow-rose-950/50">
           RTC
         </div>
-        <span class="font-bold text-slate-100 text-sm tracking-wide">RTC Messenger</span>
+        <span class="font-bold text-slate-100 text-sm tracking-wide">RTC Network</span>
       </div>
 
-      <div class="flex items-center gap-2">
-        <button id="btn-open-profile" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-colors" title="Edit Profile">
-          <i data-lucide="user" class="w-5 h-5"></i>
-        </button>
-
-        <button id="btn-logout" class="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-900 transition-colors" title="Sign Out">
-          <i data-lucide="log-out" class="w-5 h-5"></i>
-        </button>
-      </div>
+      <button id="btn-logout" class="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-900 transition-colors flex items-center gap-1 text-xs font-semibold" title="Sign Out">
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Logout</span>
+      </button>
     </header>
 
     <!-- 1. AUTHENTICATION VIEW -->
@@ -74,7 +74,7 @@
             RTC
           </div>
           <h1 class="text-2xl font-black tracking-tight text-white">RTC Messenger</h1>
-          <p class="text-xs text-slate-400 mt-1">Real-time Private Network</p>
+          <p class="text-xs text-slate-400 mt-1">Private Real-time Messenger</p>
         </div>
 
         <form id="auth-form" class="space-y-4">
@@ -88,7 +88,7 @@
             <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">5-Digit Password</label>
             <input type="password" id="auth-password" required maxlength="5" pattern="\d{5}" inputmode="numeric" placeholder="•••••"
               class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-center tracking-widest font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-rose-500 transition-colors" />
-            <p class="text-[10px] text-slate-500 mt-1">New accounts auto-register (Max 99 users).</p>
+            <p class="text-[10px] text-slate-500 mt-1">Auto-registers new accounts (Max 99 users).</p>
           </div>
 
           <div id="auth-error" class="hidden text-xs text-rose-400 bg-rose-950/50 border border-rose-900/50 rounded-xl p-2.5 text-center"></div>
@@ -100,15 +100,15 @@
       </div>
     </div>
 
-    <!-- 2. MAIN MESSAGES VIEW (SIDE-BY-SIDE ON TABLET/DESKTOP) -->
-    <div id="view-messages" class="hidden flex-1 flex flex-row overflow-hidden relative">
+    <!-- 2. HOME / CHATS TAB VIEW (SIDE-BY-SIDE ON TABLET/DESKTOP) -->
+    <div id="view-chats" class="hidden flex-1 flex flex-row overflow-hidden relative">
       
       <!-- LEFT PANEL: USER LIST -->
-      <div id="user-list-panel" class="w-full md:w-80 md:min-w-[320px] md:border-r border-slate-800/80 flex flex-col p-4 overflow-y-auto custom-scrollbar bg-slate-950">
+      <div id="user-list-panel" class="w-full md:w-80 md:min-w-[320px] md:border-r border-slate-800 flex flex-col p-4 overflow-y-auto custom-scrollbar bg-slate-950">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <i data-lucide="users" class="w-4 h-4 text-rose-500"></i>
-            <span>Accounts (<span id="user-count-display">0</span>/99)</span>
+            <span>Available Users (<span id="user-count-display">0</span>/99)</span>
           </h2>
           <button id="btn-refresh-users" class="text-slate-400 hover:text-white p-1">
             <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
@@ -123,19 +123,19 @@
       <!-- RIGHT PANEL: CHAT SCREEN -->
       <div id="chat-panel" class="hidden md:flex flex-1 flex-col bg-slate-950 z-20 absolute md:relative inset-0">
         
-        <!-- PLACEHOLDER WHEN NO CHAT IS SELECTED -->
+        <!-- PLACEHOLDER FOR NO CHAT SELECTED -->
         <div id="chat-placeholder" class="hidden md:flex flex-1 flex-col items-center justify-center text-center p-6 text-slate-500">
           <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-rose-500 mb-3">
             <i data-lucide="message-square" class="w-8 h-8"></i>
           </div>
           <p class="text-sm font-semibold text-slate-300">Select a contact to start messaging</p>
-          <p class="text-xs text-slate-600 mt-1">End-to-end peer encrypted connection</p>
+          <p class="text-xs text-slate-600 mt-1">Encrypted peer connection</p>
         </div>
 
-        <!-- ACTIVE CHAT CONTENT -->
+        <!-- ACTIVE CHAT BOX -->
         <div id="chat-active-box" class="hidden flex-1 flex flex-col h-full w-full">
           <!-- CHAT HEADER -->
-          <div class="bg-slate-900/80 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+          <div class="bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-3">
               <button id="btn-close-chat" class="md:hidden p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
@@ -149,8 +149,7 @@
                   </span>
                 </div>
                 <span class="text-[10px] text-emerald-400 flex items-center gap-1">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Active Peer
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Active
                 </span>
               </div>
             </div>
@@ -158,11 +157,11 @@
 
           <!-- MESSAGES CONTAINER -->
           <div id="messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar bg-slate-950">
-            <p class="text-center text-xs text-slate-500 py-6">No messages yet. Say hi!</p>
+            <p class="text-center text-xs text-slate-500 py-6">No messages yet.</p>
           </div>
 
           <!-- INPUT FORM -->
-          <form id="message-form" class="bg-slate-900/80 border-t border-slate-800 p-3 flex items-center gap-2">
+          <form id="message-form" class="bg-slate-900/90 border-t border-slate-800 p-3 flex items-center gap-2">
             <input type="text" id="message-input" required placeholder="Type a message..." autocomplete="off"
               class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors" />
             <button type="submit" class="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold shadow-lg shadow-rose-600/30 transition-all active:scale-95">
@@ -175,25 +174,23 @@
 
     </div>
 
-    <!-- 3. SEPARATE PROFILE PAGE VIEW -->
+    <!-- 3. FULL PAGE PROFILE TAB VIEW -->
     <div id="view-profile" class="hidden flex-1 flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto bg-slate-950">
-      <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
-        <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-800">
-          <div class="flex items-center gap-2">
+      <div class="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl my-auto">
+        <div class="text-center mb-6">
+          <h2 class="text-xl font-bold text-white flex items-center justify-center gap-2">
             <i data-lucide="user-cog" class="w-5 h-5 text-rose-500"></i>
-            <h2 class="text-base font-bold text-white">Profile Settings</h2>
-          </div>
-          <button id="btn-back-from-profile" class="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-all">
-            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Chats
-          </button>
+            <span>My Profile</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">Update your personal account settings</p>
         </div>
 
-        <form id="profile-form" class="space-y-5">
-          <!-- DIRECT IMAGE UPLOAD SECTION -->
+        <form id="profile-form" class="space-y-4">
+          <!-- DIRECT FILE UPLOAD -->
           <div class="flex flex-col items-center justify-center space-y-3">
             <div class="relative group">
               <img id="profile-preview-avatar" src="" class="w-24 h-24 rounded-full border-2 border-rose-500 object-cover bg-slate-950 shadow-xl" />
-              <label for="profile-avatar-file" class="absolute inset-0 rounded-full bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-all">
+              <label for="profile-avatar-file" class="absolute inset-0 rounded-full bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-all">
                 <i data-lucide="camera" class="w-6 h-6 text-white mb-1"></i>
                 <span class="text-[9px] font-bold text-white">Change</span>
               </label>
@@ -202,7 +199,7 @@
             <input type="file" id="profile-avatar-file" accept="image/*" class="hidden" />
 
             <button type="button" onclick="document.getElementById('profile-avatar-file').click()" class="text-xs text-rose-400 font-semibold hover:underline flex items-center gap-1">
-              <i data-lucide="upload" class="w-3.5 h-3.5"></i> Upload Photo
+              <i data-lucide="upload" class="w-3.5 h-3.5"></i> Direct Upload Picture
             </button>
             <div id="profile-verified-status" class="text-xs"></div>
           </div>
@@ -228,14 +225,27 @@
       </div>
     </div>
 
-    <!-- DELETE MESSAGE MODAL -->
+    <!-- BOTTOM NAVIGATION BAR (FIXED AT BOTTOM FOR MOBILE & DESKTOP) -->
+    <nav id="bottom-nav" class="hidden sticky bottom-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-6 py-2 flex items-center justify-around pb-safe">
+      <button id="nav-item-chats" onclick="switchTab('chats')" class="flex flex-col items-center gap-1 text-rose-500 font-bold transition-all">
+        <i data-lucide="message-square" class="w-5 h-5"></i>
+        <span class="text-[10px]">Home / Users</span>
+      </button>
+
+      <button id="nav-item-profile" onclick="switchTab('profile')" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white font-medium transition-all">
+        <i data-lucide="user" class="w-5 h-5"></i>
+        <span class="text-[10px]">Profile</span>
+      </button>
+    </nav>
+
+    <!-- DELETE MESSAGE CONFIRMATION MODAL -->
     <div id="modal-delete-msg" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
       <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xs w-full p-4 text-center space-y-3 shadow-2xl">
         <div class="w-10 h-10 mx-auto rounded-full bg-rose-950/80 border border-rose-800 flex items-center justify-center text-rose-500">
           <i data-lucide="trash-2" class="w-5 h-5"></i>
         </div>
         <h3 class="text-xs font-bold text-white">Delete Message?</h3>
-        <p class="text-[11px] text-slate-400">This message will be deleted permanently for all participants.</p>
+        <p class="text-[11px] text-slate-400">This message will be permanently deleted.</p>
 
         <div class="flex items-center gap-2 pt-1">
           <button id="btn-cancel-delete" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold py-2 rounded-xl">
@@ -251,7 +261,7 @@
   </div>
 
   <script>
-    // 1. SUPABASE CLIENT
+    // 1. SUPABASE CLIENT SETUP
     const SUPABASE_URL = 'https://zxwrsngpgxqalcdkgane.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_lxxE-8HjvTy3mYFoOrAwRw_maRBcZdc';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -290,29 +300,30 @@
       return user.is_verified === true;
     }
 
-    // VIEW ROUTER
-    function switchView(viewName) {
-      document.getElementById('view-auth').classList.add('hidden');
-      document.getElementById('view-messages').classList.add('hidden');
-      document.getElementById('view-messages').classList.remove('flex');
+    // TAB SYSTEM (NAV SWITCHER)
+    function switchTab(tabName) {
+      document.getElementById('view-chats').classList.add('hidden');
+      document.getElementById('view-chats').classList.remove('flex');
       document.getElementById('view-profile').classList.add('hidden');
 
-      if (viewName === 'auth') {
-        document.getElementById('view-auth').classList.remove('hidden');
-        document.getElementById('main-header').classList.add('hidden');
-      } else if (viewName === 'messages') {
-        document.getElementById('view-messages').classList.remove('hidden');
-        document.getElementById('view-messages').classList.add('flex');
-        document.getElementById('main-header').classList.remove('hidden');
-      } else if (viewName === 'profile') {
+      const btnChats = document.getElementById('nav-item-chats');
+      const btnProfile = document.getElementById('nav-item-profile');
+
+      if (tabName === 'chats') {
+        document.getElementById('view-chats').classList.remove('hidden');
+        document.getElementById('view-chats').classList.add('flex');
+        btnChats.className = 'flex flex-col items-center gap-1 text-rose-500 font-bold transition-all';
+        btnProfile.className = 'flex flex-col items-center gap-1 text-slate-400 hover:text-white font-medium transition-all';
+      } else if (tabName === 'profile') {
         document.getElementById('view-profile').classList.remove('hidden');
-        document.getElementById('main-header').classList.remove('hidden');
+        btnProfile.className = 'flex flex-col items-center gap-1 text-rose-500 font-bold transition-all';
+        btnChats.className = 'flex flex-col items-center gap-1 text-slate-400 hover:text-white font-medium transition-all';
         openProfilePage();
       }
       lucide.createIcons();
     }
 
-    // 2. AUTH LOGIC
+    // 2. AUTHENTICATION
     async function handleAuth(username, password) {
       const uName = username.trim();
       const pwd = password.trim();
@@ -544,7 +555,7 @@
       lucide.createIcons();
     }
 
-    // HOLD DELETE
+    // HOLD TO DELETE
     function startHoldToDelete(msgId) {
       cancelHoldToDelete();
       touchTimer = setTimeout(() => {
@@ -634,7 +645,7 @@
         .subscribe();
     }
 
-    // 6. PROFILE PAGE & DIRECT FILE UPLOAD
+    // 6. PROFILE PAGE & DIRECT IMAGE UPLOAD
     function openProfilePage() {
       if (!currentUser) return;
       selectedAvatarFile = null;
@@ -651,7 +662,6 @@
       lucide.createIcons();
     }
 
-    // IMAGE FILE UPLOAD TO SUPABASE STORAGE
     async function uploadAvatarToStorage(file) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${currentUser.id}_${Date.now()}.${fileExt}`;
@@ -687,7 +697,6 @@
       try {
         let uploadedAvatarUrl = currentUser.avatar_url;
 
-        // Upload file if selected
         if (selectedAvatarFile) {
           uploadedAvatarUrl = await uploadAvatarToStorage(selectedAvatarFile);
         }
@@ -715,7 +724,7 @@
 
         setTimeout(() => {
           statusMsg.className = 'hidden';
-          switchView('messages');
+          switchTab('chats');
         }, 1000);
 
       } catch (err) {
@@ -731,21 +740,21 @@
       return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
     }
 
-    // 7. INITIALIZE
+    // 7. INITIALIZATION
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
 
       const savedUser = getStoredUser();
       if (savedUser) {
         currentUser = savedUser;
-        switchView('messages');
+        document.getElementById('view-auth').classList.add('hidden');
+        document.getElementById('main-header').classList.remove('hidden');
+        document.getElementById('bottom-nav').classList.remove('hidden');
+        switchTab('chats');
         loadAccounts();
         setupRealtimeSync();
-      } else {
-        switchView('auth');
       }
 
-      // PREVIEW SELECTED IMAGE FILE
       document.getElementById('profile-avatar-file').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -774,7 +783,11 @@
           currentUser = user;
           saveStoredUser(user);
 
-          switchView('messages');
+          document.getElementById('view-auth').classList.add('hidden');
+          document.getElementById('main-header').classList.remove('hidden');
+          document.getElementById('bottom-nav').classList.remove('hidden');
+
+          switchTab('chats');
           await loadAccounts();
           setupRealtimeSync();
         } catch (err) {
@@ -786,9 +799,6 @@
         }
       });
 
-      document.getElementById('btn-open-profile').addEventListener('click', () => switchView('profile'));
-      document.getElementById('btn-back-from-profile').addEventListener('click', () => switchView('messages'));
-      document.getElementById('header-logo-btn').addEventListener('click', () => switchView('messages'));
       document.getElementById('btn-close-chat').addEventListener('click', closeChat);
       document.getElementById('btn-refresh-users').addEventListener('click', loadAccounts);
 
