@@ -40,7 +40,6 @@
       background: #334155;
       border-radius: 4px;
     }
-    /* Safe Area Padding for Modern Smartphones */
     .pb-safe {
       padding-bottom: env(safe-area-inset-bottom, 1rem);
     }
@@ -51,7 +50,7 @@
   <!-- APP WRAPPER -->
   <div id="app" class="flex-1 flex flex-col max-w-7xl mx-auto w-full h-full border-x border-slate-800/60 shadow-2xl relative overflow-hidden md:my-auto md:max-h-[96dvh] md:rounded-3xl md:border">
 
-    <!-- HEADER (Appears after login) -->
+    <!-- HEADER -->
     <header id="main-header" class="hidden sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-600 to-rose-900 flex items-center justify-center font-black text-white text-xs shadow-md shadow-rose-950/50">
@@ -100,7 +99,7 @@
       </div>
     </div>
 
-    <!-- 2. HOME / CHATS TAB VIEW (SIDE-BY-SIDE ON TABLET/DESKTOP) -->
+    <!-- 2. HOME / CHATS TAB VIEW -->
     <div id="view-chats" class="hidden flex-1 flex flex-row overflow-hidden relative">
       
       <!-- LEFT PANEL: USER LIST -->
@@ -108,7 +107,7 @@
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <i data-lucide="users" class="w-4 h-4 text-rose-500"></i>
-            <span>Available Users (<span id="user-count-display">0</span>/99)</span>
+            <span>Available Users (<span id="user-count-display">0</span>)</span>
           </h2>
           <button id="btn-refresh-users" class="text-slate-400 hover:text-white p-1">
             <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
@@ -186,7 +185,6 @@
         </div>
 
         <form id="profile-form" class="space-y-4">
-          <!-- DIRECT FILE UPLOAD -->
           <div class="flex flex-col items-center justify-center space-y-3">
             <div class="relative group">
               <img id="profile-preview-avatar" src="" class="w-24 h-24 rounded-full border-2 border-rose-500 object-cover bg-slate-950 shadow-xl" />
@@ -225,7 +223,7 @@
       </div>
     </div>
 
-    <!-- BOTTOM NAVIGATION BAR (FIXED AT BOTTOM FOR MOBILE & DESKTOP) -->
+    <!-- BOTTOM NAVIGATION BAR -->
     <nav id="bottom-nav" class="hidden sticky bottom-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-6 py-2 flex items-center justify-around pb-safe">
       <button id="nav-item-chats" onclick="switchTab('chats')" class="flex flex-col items-center gap-1 text-rose-500 font-bold transition-all">
         <i data-lucide="message-square" class="w-5 h-5"></i>
@@ -238,7 +236,7 @@
       </button>
     </nav>
 
-    <!-- DELETE MESSAGE CONFIRMATION MODAL -->
+    <!-- DELETE MESSAGE MODAL -->
     <div id="modal-delete-msg" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
       <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xs w-full p-4 text-center space-y-3 shadow-2xl">
         <div class="w-10 h-10 mx-auto rounded-full bg-rose-950/80 border border-rose-800 flex items-center justify-center text-rose-500">
@@ -261,7 +259,6 @@
   </div>
 
   <script>
-    // 1. SUPABASE CLIENT SETUP
     const SUPABASE_URL = 'https://zxwrsngpgxqalcdkgane.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_lxxE-8HjvTy3mYFoOrAwRw_maRBcZdc';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -300,7 +297,6 @@
       return user.is_verified === true;
     }
 
-    // TAB SYSTEM (NAV SWITCHER)
     function switchTab(tabName) {
       document.getElementById('view-chats').classList.add('hidden');
       document.getElementById('view-chats').classList.remove('flex');
@@ -323,7 +319,6 @@
       lucide.createIcons();
     }
 
-    // 2. AUTHENTICATION
     async function handleAuth(username, password) {
       const uName = username.trim();
       const pwd = password.trim();
@@ -372,7 +367,6 @@
       return created;
     }
 
-    // 3. ACCOUNTS RENDER
     async function loadAccounts() {
       try {
         const { data: users, error } = await supabaseClient
@@ -399,18 +393,20 @@
 
     function renderUsersList() {
       const container = document.getElementById('users-container');
-      document.getElementById('user-count-display').textContent = registeredUsers.length;
+      
+      // Filter out self (currentUser) from active list
+      const otherUsers = registeredUsers.filter(u => currentUser && u.id !== currentUser.id);
+      document.getElementById('user-count-display').textContent = otherUsers.length;
 
-      if (!registeredUsers.length) {
-        container.innerHTML = `<p class="text-center py-6 text-xs text-slate-500">No registered accounts found.</p>`;
+      if (!otherUsers.length) {
+        container.innerHTML = `<p class="text-center py-6 text-xs text-slate-500">No other users available.</p>`;
         return;
       }
 
       const firstUser = registeredUsers[0];
       const isSelfFirstUser = currentUser && firstUser && currentUser.id === firstUser.id;
 
-      container.innerHTML = registeredUsers.map(u => {
-        const isSelf = currentUser && u.id === currentUser.id;
+      container.innerHTML = otherUsers.map(u => {
         const isFirst = firstUser && u.id === firstUser.id;
         const userVerified = isFirst || u.is_verified;
 
@@ -426,14 +422,13 @@
                       <i data-lucide="check-circle-2" class="w-3.5 h-3.5 fill-blue-500/20"></i>
                     </span>
                   ` : ''}
-                  ${isSelf ? '<span class="text-[9px] bg-rose-950 text-rose-400 border border-rose-800/60 px-1.5 py-0.2 rounded">You</span>' : ''}
                 </div>
                 <p class="text-[10px] text-slate-500">${isFirst ? 'Permanent Leader' : 'Peer Account'}</p>
               </div>
             </div>
 
             <div class="flex items-center gap-2" onclick="event.stopPropagation();">
-              ${isSelfFirstUser && !isFirst ? `
+              ${isSelfFirstUser ? `
                 <button onclick="toggleUserBadge('${u.id}', ${!userVerified})" class="text-[10px] font-bold px-2.5 py-1 rounded-xl transition-all border ${userVerified ? 'bg-rose-950/40 text-rose-400 border-rose-800/60 hover:bg-rose-900/60' : 'bg-blue-950/40 text-blue-400 border-blue-800/60 hover:bg-blue-900/60'}">
                   ${userVerified ? 'Remove' : 'Grant'}
                 </button>
@@ -458,9 +453,9 @@
       if (!error) loadAccounts();
     }
 
-    // 4. CHAT FUNCTIONS
     async function openChatWith(targetUsername) {
-      if (!currentUser) return;
+      if (!currentUser || targetUsername === currentUser.username) return; // Block self messaging
+      
       const target = registeredUsers.find(u => u.username === targetUsername);
       if (!target) return;
 
@@ -555,7 +550,6 @@
       lucide.createIcons();
     }
 
-    // HOLD TO DELETE
     function startHoldToDelete(msgId) {
       cancelHoldToDelete();
       touchTimer = setTimeout(() => {
@@ -592,7 +586,7 @@
     }
 
     async function sendMessage(text) {
-      if (!text.trim() || !currentUser || !selectedChatUser) return;
+      if (!text.trim() || !currentUser || !selectedChatUser || selectedChatUser.username === currentUser.username) return;
 
       const newMsg = {
         sender_username: currentUser.username,
@@ -615,7 +609,6 @@
       }
     }
 
-    // 5. REALTIME SYNC
     function setupRealtimeSync() {
       if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
 
@@ -645,7 +638,6 @@
         .subscribe();
     }
 
-    // 6. PROFILE PAGE & DIRECT IMAGE UPLOAD
     function openProfilePage() {
       if (!currentUser) return;
       selectedAvatarFile = null;
@@ -740,7 +732,6 @@
       return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
     }
 
-    // 7. INITIALIZATION
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
 
