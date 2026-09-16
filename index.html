@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>RTC Messenger</title>
+
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#e11d48', 600: '#be123c', 950: '#4c0519' },
+            slate: { 900: '#0f172a', 950: '#020617' }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    input, textarea {
+      user-select: auto;
+      -webkit-user-select: auto;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen h-dvh flex flex-col font-sans antialiased overflow-hidden selection:bg-rose-600 selection:text-white">
+
+  <!-- MAIN APP CONTAINER (RESPONSIVE FOR ALL DEVICES) -->
+  <div id="app" class="flex-1 flex flex-col max-w-7xl mx-auto w-full h-full border-x border-slate-800/60 shadow-2xl relative overflow-hidden md:my-auto md:max-h-[96dvh] md:rounded-3xl md:border">
+
+    <!-- HEADER -->
+    <header id="main-header" class="hidden sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-600 to-rose-900 flex items-center justify-center font-black text-white text-xs shadow-md shadow-rose-950/50">
+          RTC
+        </div>
+        <span class="font-bold text-slate-100 text-sm tracking-wide">RTC Messenger</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="btn-open-profile" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition-colors" title="Profile">
+          <i data-lucide="user" class="w-5 h-5"></i>
+        </button>
+
+        <button id="btn-logout" class="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-900 transition-colors" title="Sign Out">
+          <i data-lucide="log-out" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- AUTHENTICATION VIEW -->
+    <div id="view-auth" class="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      <div class="w-full max-w-sm sm:max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-rose-600 to-rose-900 flex items-center justify-center font-black text-2xl text-white shadow-xl shadow-rose-950/60 mb-3">
+            RTC
+          </div>
+          <h1 class="text-2xl font-black tracking-tight text-white">RTC Messenger</h1>
+          <p class="text-xs text-slate-400 mt-1">Real-time Private Network</p>
+        </div>
+
+        <form id="auth-form" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Username</label>
+            <input type="text" id="auth-username" required placeholder="Enter username" maxlength="24"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-rose-500 transition-colors" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">5-Digit Password</label>
+            <input type="password" id="auth-password" required maxlength="5" pattern="\d{5}" inputmode="numeric" placeholder="•••••"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-center tracking-widest font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-rose-500 transition-colors" />
+            <p class="text-[10px] text-slate-500 mt-1">New accounts auto-register (Max 99 users).</p>
+          </div>
+
+          <div id="auth-error" class="hidden text-xs text-rose-400 bg-rose-950/50 border border-rose-900/50 rounded-xl p-2.5 text-center"></div>
+
+          <button type="submit" id="auth-submit-btn" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-rose-600/30 transition-all active:scale-[0.98]">
+            Enter Messenger
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MAIN MESSAGES PANEL (DUAL-PANE TABLET/DESKTOP READY) -->
+    <div id="view-messages" class="hidden flex-1 flex flex-row overflow-hidden relative">
+      
+      <!-- LEFT PANEL: USER LIST -->
+      <div id="user-list-panel" class="w-full md:w-80 md:min-w-[320px] md:border-r border-slate-800/80 flex flex-col p-4 overflow-y-auto custom-scrollbar bg-slate-950">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="users" class="w-4 h-4 text-rose-500"></i>
+            <span>Registered Accounts (<span id="user-count-display">0</span>/99)</span>
+          </h2>
+          <button id="btn-refresh-users" class="text-slate-400 hover:text-white p-1">
+            <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <div id="users-container" class="space-y-2">
+          <p class="text-center py-6 text-xs text-slate-500">Loading users...</p>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL: CHAT SCREEN -->
+      <div id="chat-panel" class="hidden md:flex flex-1 flex-col bg-slate-950 z-20 absolute md:relative inset-0">
+        
+        <!-- PLACEHOLDER FOR TABLET WHEN NO CHAT IS SELECTED -->
+        <div id="chat-placeholder" class="hidden md:flex flex-1 flex-col items-center justify-center text-center p-6 text-slate-500">
+          <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-rose-500 mb-3">
+            <i data-lucide="message-square" class="w-8 h-8"></i>
+          </div>
+          <p class="text-sm font-semibold text-slate-300">Select a contact to start messaging</p>
+          <p class="text-xs text-slate-600 mt-1">End-to-end peer encrypted connection</p>
+        </div>
+
+        <!-- ACTIVE CHAT CONTENT -->
+        <div id="chat-active-box" class="hidden flex-1 flex flex-col h-full w-full">
+          <!-- CHAT HEADER -->
+          <div class="bg-slate-900/80 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button id="btn-close-chat" class="md:hidden p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+              </button>
+              <img id="chat-target-avatar" src="" class="w-9 h-9 rounded-full bg-slate-800 object-cover border border-slate-700" />
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span id="chat-target-name" class="font-bold text-sm text-slate-100">Username</span>
+                  <span id="chat-target-badge" class="hidden text-blue-400" title="Verified Badge">
+                    <i data-lucide="check-circle-2" class="w-4 h-4 fill-blue-500/20"></i>
+                  </span>
+                </div>
+                <span class="text-[10px] text-emerald-400 flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Active Peer
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- MESSAGES CONTAINER -->
+          <div id="messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar bg-slate-950">
+            <p class="text-center text-xs text-slate-500 py-6">No messages yet. Say hi!</p>
+          </div>
+
+          <!-- INPUT FORM -->
+          <form id="message-form" class="bg-slate-900/80 border-t border-slate-800 p-3 flex items-center gap-2">
+            <input type="text" id="message-input" required placeholder="Type a message..." autocomplete="off"
+              class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors" />
+            <button type="submit" class="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold shadow-lg shadow-rose-600/30 transition-all active:scale-95">
+              <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+          </form>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- PROFILE MODAL -->
+    <div id="modal-profile" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-5 shadow-2xl flex flex-col space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i data-lucide="user" class="w-4 h-4 text-rose-500"></i>
+            <span>Edit Profile</span>
+          </h3>
+          <button id="btn-close-profile" class="p-1 text-slate-400 hover:text-white rounded-lg">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <form id="profile-form" class="space-y-3">
+          <div class="text-center py-2">
+            <img id="profile-preview-avatar" src="" class="w-16 h-16 mx-auto rounded-full border-2 border-rose-500 object-cover bg-slate-950 mb-2" />
+            <div id="profile-verified-status" class="text-[11px] font-bold text-slate-400 flex items-center justify-center gap-1"></div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1 uppercase tracking-wider">Profile Picture URL</label>
+            <input type="url" id="profile-avatar-input" placeholder="https://example.com/image.jpg"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-rose-500 transition-colors" />
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1 uppercase tracking-wider">Username</label>
+            <input type="text" id="profile-username-input" required maxlength="24"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-rose-500 transition-colors" />
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1 uppercase tracking-wider">Change 5-Digit Password</label>
+            <input type="password" id="profile-password-input" required maxlength="5" pattern="\d{5}" inputmode="numeric"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-center text-slate-100 focus:outline-none focus:border-rose-500 transition-colors" />
+          </div>
+
+          <div id="profile-status-msg" class="hidden text-xs rounded-xl p-2 text-center"></div>
+
+          <button type="submit" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl shadow-md shadow-rose-600/20 text-xs transition-all active:scale-95">
+            Save Changes
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- DELETE MESSAGE CONFIRMATION MODAL -->
+    <div id="modal-delete-msg" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xs w-full p-4 text-center space-y-3 shadow-2xl">
+        <div class="w-10 h-10 mx-auto rounded-full bg-rose-950/80 border border-rose-800 flex items-center justify-center text-rose-500">
+          <i data-lucide="trash-2" class="w-5 h-5"></i>
+        </div>
+        <h3 class="text-xs font-bold text-white">Delete Message?</h3>
+        <p class="text-[11px] text-slate-400">This message will be deleted permanently for all participants.</p>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button id="btn-cancel-delete" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold py-2 rounded-xl">
+            Cancel
+          </button>
+          <button id="btn-confirm-delete" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold py-2 rounded-xl shadow-md shadow-rose-600/30">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // 1. SUPABASE CLIENT
+    const SUPABASE_URL = 'https://zxwrsngpgxqalcdkgane.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_lxxE-8HjvTy3mYFoOrAwRw_maRBcZdc';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentUser = null;
+    let registeredUsers = [];
+    let selectedChatUser = null;
+    let activeMessages = [];
+    let realtimeChannel = null;
+    let pendingDeleteMsgId = null;
+    let touchTimer = null;
+
+    function getStoredUser() {
+      try {
+        const data = localStorage.getItem('rtc_messenger_user');
+        return data ? JSON.parse(data) : null;
+      } catch (e) { return null; }
+    }
+    function saveStoredUser(u) {
+      if (u) localStorage.setItem('rtc_messenger_user', JSON.stringify(u));
+      else localStorage.removeItem('rtc_messenger_user');
+    }
+
+    function getAvatar(user) {
+      if (user && user.avatar_url && user.avatar_url.trim() !== '') return user.avatar_url;
+      return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user ? user.username : 'default')}`;
+    }
+
+    function isVerified(user, allUsers) {
+      if (!user) return false;
+      if (allUsers && allUsers.length > 0) {
+        const sorted = [...allUsers].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        if (sorted[0] && sorted[0].id === user.id) return true;
+      }
+      return user.is_verified === true;
+    }
+
+    // 2. AUTH LOGIC
+    async function handleAuth(username, password) {
+      const uName = username.trim();
+      const pwd = password.trim();
+
+      if (!uName || pwd.length !== 5 || !/^\d{5}$/.test(pwd)) {
+        throw new Error('Username & a 5-digit numeric password required.');
+      }
+
+      const { data: existing, error: fetchErr } = await supabaseClient
+        .from('users')
+        .select('*')
+        .eq('username', uName)
+        .maybeSingle();
+
+      if (fetchErr) throw fetchErr;
+
+      if (existing) {
+        if (existing.password !== pwd) throw new Error('Incorrect 5-digit password.');
+        return existing;
+      }
+
+      const { count, error: countErr } = await supabaseClient
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+
+      if (countErr) throw countErr;
+      if (count >= 99) throw new Error('Limit reached! Max 99 users allowed.');
+
+      const isFirst = (count === 0);
+
+      const newUser = {
+        username: uName,
+        password: pwd,
+        avatar_url: '',
+        is_verified: isFirst,
+        created_at: new Date().toISOString()
+      };
+
+      const { data: created, error: createErr } = await supabaseClient
+        .from('users')
+        .insert(newUser)
+        .select()
+        .single();
+
+      if (createErr) throw createErr;
+      return created;
+    }
+
+    // 3. ACCOUNTS RENDER
+    async function loadAccounts() {
+      try {
+        const { data: users, error } = await supabaseClient
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        registeredUsers = users || [];
+
+        if (currentUser) {
+          const freshSelf = registeredUsers.find(u => u.id === currentUser.id);
+          if (freshSelf) {
+            currentUser = freshSelf;
+            saveStoredUser(currentUser);
+          }
+        }
+
+        renderUsersList();
+      } catch (err) {
+        console.error('Error loading users:', err);
+      }
+    }
+
+    function renderUsersList() {
+      const container = document.getElementById('users-container');
+      document.getElementById('user-count-display').textContent = registeredUsers.length;
+
+      if (!registeredUsers.length) {
+        container.innerHTML = `<p class="text-center py-6 text-xs text-slate-500">No registered accounts found.</p>`;
+        return;
+      }
+
+      const firstUser = registeredUsers[0];
+      const isSelfFirstUser = currentUser && firstUser && currentUser.id === firstUser.id;
+
+      container.innerHTML = registeredUsers.map(u => {
+        const isSelf = currentUser && u.id === currentUser.id;
+        const isFirst = firstUser && u.id === firstUser.id;
+        const userVerified = isFirst || u.is_verified;
+
+        return `
+          <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800/80 hover:border-slate-700 transition-all cursor-pointer" onclick="openChatWith('${u.username}')">
+            <div class="flex items-center gap-3">
+              <img src="${getAvatar(u)}" class="w-10 h-10 rounded-full bg-slate-950 border border-slate-700 object-cover" />
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-xs text-slate-100">${u.username}</span>
+                  ${userVerified ? `
+                    <span class="text-blue-400" title="${isFirst ? '1st Permanent Verified Leader' : 'Verified Badge'}">
+                      <i data-lucide="check-circle-2" class="w-3.5 h-3.5 fill-blue-500/20"></i>
+                    </span>
+                  ` : ''}
+                  ${isSelf ? '<span class="text-[9px] bg-rose-950 text-rose-400 border border-rose-800/60 px-1.5 py-0.2 rounded">You</span>' : ''}
+                </div>
+                <p class="text-[10px] text-slate-500">${isFirst ? 'Permanent Leader' : 'Peer Account'}</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2" onclick="event.stopPropagation();">
+              ${isSelfFirstUser && !isFirst ? `
+                <button onclick="toggleUserBadge('${u.id}', ${!userVerified})" class="text-[10px] font-bold px-2.5 py-1 rounded-xl transition-all border ${userVerified ? 'bg-rose-950/40 text-rose-400 border-rose-800/60 hover:bg-rose-900/60' : 'bg-blue-950/40 text-blue-400 border-blue-800/60 hover:bg-blue-900/60'}">
+                  ${userVerified ? 'Remove Badge' : 'Grant Badge'}
+                </button>
+              ` : ''}
+              <button onclick="openChatWith('${u.username}')" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
+                <i data-lucide="message-square" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    async function toggleUserBadge(targetId, newStatus) {
+      const { error } = await supabaseClient
+        .from('users')
+        .update({ is_verified: newStatus })
+        .eq('id', targetId);
+
+      if (!error) loadAccounts();
+    }
+
+    // 4. CHAT FUNCTIONS
+    async function openChatWith(targetUsername) {
+      if (!currentUser) return;
+      const target = registeredUsers.find(u => u.username === targetUsername);
+      if (!target) return;
+
+      selectedChatUser = target;
+      document.getElementById('chat-target-name').textContent = target.username;
+      document.getElementById('chat-target-avatar').src = getAvatar(target);
+      
+      const targetVerified = isVerified(target, registeredUsers);
+      const badgeEl = document.getElementById('chat-target-badge');
+      if (targetVerified) badgeEl.classList.remove('hidden');
+      else badgeEl.classList.add('hidden');
+
+      // Responsive Panel Switch
+      document.getElementById('chat-placeholder').classList.add('hidden');
+      document.getElementById('chat-placeholder').classList.remove('md:flex');
+      document.getElementById('chat-active-box').classList.remove('hidden');
+      document.getElementById('chat-active-box').classList.add('flex');
+      
+      const chatPanel = document.getElementById('chat-panel');
+      chatPanel.classList.remove('hidden');
+      chatPanel.classList.add('flex');
+
+      await fetchMessages();
+    }
+
+    function closeChat() {
+      selectedChatUser = null;
+      document.getElementById('chat-active-box').classList.add('hidden');
+      document.getElementById('chat-active-box').classList.remove('flex');
+      document.getElementById('chat-placeholder').classList.remove('hidden');
+      document.getElementById('chat-placeholder').classList.add('md:flex');
+
+      const chatPanel = document.getElementById('chat-panel');
+      if (window.innerWidth < 768) {
+        chatPanel.classList.add('hidden');
+        chatPanel.classList.remove('flex');
+      }
+    }
+
+    async function fetchMessages() {
+      if (!currentUser || !selectedChatUser) return;
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: msgs, error } = await supabaseClient
+        .from('messages')
+        .select('*')
+        .gte('created_at', sevenDaysAgo)
+        .or(`and(sender_username.eq.${currentUser.username},receiver_username.eq.${selectedChatUser.username}),and(sender_username.eq.${selectedChatUser.username},receiver_username.eq.${currentUser.username})`)
+        .order('created_at', { ascending: true });
+
+      if (!error) {
+        activeMessages = msgs || [];
+        renderMessages();
+      }
+    }
+
+    function renderMessages() {
+      const container = document.getElementById('messages-container');
+      if (!activeMessages.length) {
+        container.innerHTML = `<p class="text-center text-xs text-slate-500 py-6">No messages yet. (Auto deleted after 7 days)</p>`;
+        return;
+      }
+
+      container.innerHTML = activeMessages.map(m => {
+        const isMine = m.sender_username === currentUser.username;
+        const timeStr = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        return `
+          <div class="flex flex-col ${isMine ? 'items-end' : 'items-start'} my-1">
+            <div 
+              class="max-w-[85%] sm:max-w-[75%] px-3.5 py-2.5 rounded-2xl text-xs relative group cursor-pointer transition-all active:scale-[0.98] ${
+                isMine 
+                  ? 'bg-rose-600 text-white rounded-br-xs shadow-md shadow-rose-950/40' 
+                  : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-bl-xs'
+              }"
+              onmousedown="startHoldToDelete('${m.id}')"
+              onmouseup="cancelHoldToDelete()"
+              ontouchstart="startHoldToDelete('${m.id}')"
+              ontouchmove="cancelHoldToDelete()"
+              ontouchend="cancelHoldToDelete()"
+              oncontextmenu="event.preventDefault(); triggerDeleteModal('${m.id}');"
+            >
+              <p class="break-words select-text">${escapeHTML(m.content)}</p>
+              <div class="flex items-center justify-end gap-1 mt-1 opacity-70 text-[9px]">
+                <span>${timeStr}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.scrollTop = container.scrollHeight;
+      lucide.createIcons();
+    }
+
+    // HOLD DELETE
+    function startHoldToDelete(msgId) {
+      cancelHoldToDelete();
+      touchTimer = setTimeout(() => {
+        triggerDeleteModal(msgId);
+      }, 500);
+    }
+
+    function cancelHoldToDelete() {
+      if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+      }
+    }
+
+    function triggerDeleteModal(msgId) {
+      pendingDeleteMsgId = msgId;
+      document.getElementById('modal-delete-msg').classList.remove('hidden');
+    }
+
+    async function executeDeleteMessage() {
+      if (!pendingDeleteMsgId) return;
+
+      const { error } = await supabaseClient
+        .from('messages')
+        .delete()
+        .eq('id', pendingDeleteMsgId);
+
+      if (!error) {
+        activeMessages = activeMessages.filter(m => m.id !== pendingDeleteMsgId);
+        renderMessages();
+      }
+      document.getElementById('modal-delete-msg').classList.add('hidden');
+      pendingDeleteMsgId = null;
+    }
+
+    async function sendMessage(text) {
+      if (!text.trim() || !currentUser || !selectedChatUser) return;
+
+      const newMsg = {
+        sender_username: currentUser.username,
+        receiver_username: selectedChatUser.username,
+        content: text.trim(),
+        created_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabaseClient
+        .from('messages')
+        .insert(newMsg)
+        .select()
+        .single();
+
+      if (!error && data) {
+        if (!activeMessages.some(m => m.id === data.id)) {
+          activeMessages.push(data);
+          renderMessages();
+        }
+      }
+    }
+
+    // 5. REALTIME SYNC
+    function setupRealtimeSync() {
+      if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+
+      realtimeChannel = supabaseClient
+        .channel('public-rtc-sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newM = payload.new;
+            if (
+              selectedChatUser &&
+              ((newM.sender_username === currentUser.username && newM.receiver_username === selectedChatUser.username) ||
+               (newM.sender_username === selectedChatUser.username && newM.receiver_username === currentUser.username))
+            ) {
+              if (!activeMessages.some(m => m.id === newM.id)) {
+                activeMessages.push(newM);
+                renderMessages();
+              }
+            }
+          } else if (payload.eventType === 'DELETE') {
+            activeMessages = activeMessages.filter(m => m.id !== payload.old.id);
+            renderMessages();
+          }
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+          loadAccounts();
+        })
+        .subscribe();
+    }
+
+    // 6. PROFILE MODAL
+    function openProfileModal() {
+      if (!currentUser) return;
+      document.getElementById('profile-username-input').value = currentUser.username;
+      document.getElementById('profile-password-input').value = currentUser.password;
+      document.getElementById('profile-avatar-input').value = currentUser.avatar_url || '';
+      document.getElementById('profile-preview-avatar').src = getAvatar(currentUser);
+
+      const statusEl = document.getElementById('profile-verified-status');
+      const userVerified = isVerified(currentUser, registeredUsers);
+      statusEl.innerHTML = userVerified 
+        ? `<span class="text-blue-400 font-bold flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Verified Badge</span>` 
+        : `<span class="text-slate-500">Standard User</span>`;
+
+      document.getElementById('modal-profile').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    async function handleProfileSave(username, password, avatarUrl) {
+      if (!currentUser) return;
+      const statusMsg = document.getElementById('profile-status-msg');
+
+      if (password.length !== 5 || !/^\d{5}$/.test(password)) {
+        statusMsg.textContent = 'Password must be exactly 5 numeric digits.';
+        statusMsg.className = 'text-xs text-rose-400 bg-rose-950/60 p-2 rounded-xl text-center block';
+        return;
+      }
+
+      const updates = {
+        username: username.trim(),
+        password: password.trim(),
+        avatar_url: avatarUrl.trim()
+      };
+
+      const { data, error } = await supabaseClient
+        .from('users')
+        .update(updates)
+        .eq('id', currentUser.id)
+        .select()
+        .single();
+
+      if (error) {
+        statusMsg.textContent = error.message;
+        statusMsg.className = 'text-xs text-rose-400 bg-rose-950/60 p-2 rounded-xl text-center block';
+      } else {
+        currentUser = data;
+        saveStoredUser(currentUser);
+        statusMsg.textContent = '✓ Profile saved successfully!';
+        statusMsg.className = 'text-xs text-emerald-400 bg-emerald-950/60 p-2 rounded-xl text-center block';
+        await loadAccounts();
+        setTimeout(() => {
+          document.getElementById('modal-profile').classList.add('hidden');
+          statusMsg.className = 'hidden';
+        }, 800);
+      }
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    }
+
+    // 7. INITIALIZE
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const savedUser = getStoredUser();
+      if (savedUser) {
+        currentUser = savedUser;
+        document.getElementById('view-auth').classList.add('hidden');
+        document.getElementById('main-header').classList.remove('hidden');
+        document.getElementById('view-messages').classList.remove('hidden');
+        document.getElementById('view-messages').classList.add('flex');
+        loadAccounts();
+        setupRealtimeSync();
+      }
+
+      document.getElementById('auth-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const u = document.getElementById('auth-username').value;
+        const p = document.getElementById('auth-password').value;
+        const errEl = document.getElementById('auth-error');
+        const btn = document.getElementById('auth-submit-btn');
+
+        errEl.classList.add('hidden');
+        btn.disabled = true;
+        btn.textContent = 'Connecting...';
+
+        try {
+          const user = await handleAuth(u, p);
+          currentUser = user;
+          saveStoredUser(user);
+
+          document.getElementById('view-auth').classList.add('hidden');
+          document.getElementById('main-header').classList.remove('hidden');
+          document.getElementById('view-messages').classList.remove('hidden');
+          document.getElementById('view-messages').classList.add('flex');
+
+          await loadAccounts();
+          setupRealtimeSync();
+        } catch (err) {
+          errEl.textContent = err.message;
+          errEl.classList.remove('hidden');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Enter Messenger';
+        }
+      });
+
+      document.getElementById('btn-open-profile').addEventListener('click', openProfileModal);
+      document.getElementById('btn-close-profile').addEventListener('click', () => {
+        document.getElementById('modal-profile').classList.add('hidden');
+      });
+      document.getElementById('btn-close-chat').addEventListener('click', closeChat);
+      document.getElementById('btn-refresh-users').addEventListener('click', loadAccounts);
+
+      document.getElementById('btn-logout').addEventListener('click', () => {
+        if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+        currentUser = null;
+        saveStoredUser(null);
+        location.reload();
+      });
+
+      document.getElementById('message-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('message-input');
+        sendMessage(input.value);
+        input.value = '';
+      });
+
+      document.getElementById('profile-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const u = document.getElementById('profile-username-input').value;
+        const p = document.getElementById('profile-password-input').value;
+        const a = document.getElementById('profile-avatar-input').value;
+        handleProfileSave(u, p, a);
+      });
+
+      document.getElementById('btn-confirm-delete').addEventListener('click', executeDeleteMessage);
+      document.getElementById('btn-cancel-delete').addEventListener('click', () => {
+        document.getElementById('modal-delete-msg').classList.add('hidden');
+        pendingDeleteMsgId = null;
+      });
+    });
+  </script>
+</body>
+</html>
