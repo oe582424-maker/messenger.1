@@ -271,6 +271,22 @@
     let pendingDeleteMsgId = null;
     let touchTimer = null;
     let selectedAvatarFile = null;
+    let unreadCounts = {}; // Unread messages store
+
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        Notification.requestPermission();
+      }
+    }
+
+    function showWebNotification(senderName, messageContent) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(`New Message from ${senderName}`, {
+          body: messageContent,
+          icon: 'https://api.dicebear.com/7.x/bottts/svg?seed=' + encodeURIComponent(senderName)
+        });
+      }
+    }
 
     function getStoredUser() {
       try {
@@ -336,6 +352,7 @@
       if (fetchErr) throw fetchErr;
 
       if (existing) {
+        if (existing.is_blocked) throw new Error('This account has been blocked by Admin.');
         if (existing.password !== pwd) throw new Error('Incorrect 5-digit password.');
         return existing;
       }
@@ -354,6 +371,7 @@
         password: pwd,
         avatar_url: '',
         is_verified: isFirst,
+        is_blocked: false,
         created_at: new Date().toISOString()
       };
 
@@ -380,6 +398,11 @@
         if (currentUser) {
           const freshSelf = registeredUsers.find(u => u.id === currentUser.id);
           if (freshSelf) {
+            if (freshSelf.is_blocked) {
+              alert('Your account has been blocked by the admin.');
+              document.getElementById('btn-logout').click();
+              return;
+            }
             currentUser = freshSelf;
             saveStoredUser(currentUser);
           }
@@ -394,7 +417,7 @@
     function renderUsersList() {
       const container = document.getElementById('users-container');
       
-      // Filter out self (currentUser) from active list
+      // Filter out self (currentUser)
       const otherUsers = registeredUsers.filter(u => currentUser && u.id !== currentUser.id);
       document.getElementById('user-count-display').textContent = otherUsers.length;
 
@@ -409,11 +432,19 @@
       container.innerHTML = otherUsers.map(u => {
         const isFirst = firstUser && u.id === firstUser.id;
         const userVerified = isFirst || u.is_verified;
+        const unreadCount = unreadCounts[u.username] || 0;
 
         return `
-          <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800/80 hover:border-slate-700 transition-all cursor-pointer" onclick="openChatWith('${u.username}')">
+          <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800/80 hover:border-slate-700 transition-all cursor-pointer relative" onclick="openChatWith('${u.username}')">
             <div class="flex items-center gap-3">
-              <img src="${getAvatar(u)}" class="w-10 h-10 rounded-full bg-slate-950 border border-slate-700 object-cover" />
+              <div class="relative">
+                <img src="${getAvatar(u)}" class="w-10 h-10 rounded-full bg-slate-950 border border-slate-700 object-cover" />
+                ${unreadCount > 0 ? `
+                  <span class="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-950 animate-bounce">
+                    ${unreadCount}
+                  </span>
+                ` : ''}
+              </div>
               <div>
                 <div class="flex items-center gap-1.5">
                   <span class="font-bold text-xs text-slate-100">${u.username}</span>
@@ -422,18 +453,25 @@
                       <i data-lucide="check-circle-2" class="w-3.5 h-3.5 fill-blue-500/20"></i>
                     </span>
                   ` : ''}
+                  ${u.is_blocked ? `<span class="text-[9px] bg-rose-950 text-rose-400 px-1.5 py-0.5 rounded border border-rose-800">Blocked</span>` : ''}
                 </div>
                 <p class="text-[10px] text-slate-500">${isFirst ? 'Permanent Leader' : 'Peer Account'}</p>
               </div>
             </div>
 
-            <div class="flex items-center gap-2" onclick="event.stopPropagation();">
+            <div class="flex items-center gap-1" onclick="event.stopPropagation();">
               ${isSelfFirstUser ? `
-                <button onclick="toggleUserBadge('${u.id}', ${!userVerified})" class="text-[10px] font-bold px-2.5 py-1 rounded-xl transition-all border ${userVerified ? 'bg-rose-950/40 text-rose-400 border-rose-800/60 hover:bg-rose-900/60' : 'bg-blue-950/40 text-blue-400 border-blue-800/60 hover:bg-blue-900/60'}">
-                  ${userVerified ? 'Remove' : 'Grant'}
+                <button onclick="toggleUserBadge('${u.id}', ${!userVerified})" class="text-[9px] font-bold px-2 py-1 rounded-lg transition-all border ${userVerified ? 'bg-rose-950/40 text-rose-400 border-rose-800/60' : 'bg-blue-950/40 text-blue-400 border-blue-800/60'}" title="Toggle Badge">
+                  ${userVerified ? '- Badge' : '+ Badge'}
+                </button>
+                <button onclick="toggleBlockUser('${u.id}', ${!u.is_blocked})" class="text-[9px] font-bold px-2 py-1 rounded-lg transition-all border ${u.is_blocked ? 'bg-amber-950/40 text-amber-400 border-amber-800/60' : 'bg-slate-800 text-slate-300 border-slate-700'}" title="Block/Unblock">
+                  ${u.is_blocked ? 'Unblock' : 'Block'}
+                </button>
+                <button onclick="deleteUserAccount('${u.id}', '${u.username}')" class="p-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-400 border border-rose-800/60" title="Delete Account">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                 </button>
               ` : ''}
-              <button onclick="openChatWith('${u.username}')" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
+              <button onclick="openChatWith('${u.username}')" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 ml-1">
                 <i data-lucide="message-square" class="w-4 h-4"></i>
               </button>
             </div>
@@ -453,13 +491,41 @@
       if (!error) loadAccounts();
     }
 
+    async function toggleBlockUser(targetId, blockStatus) {
+      if (!confirm(`Are you sure you want to ${blockStatus ? 'BLOCK' : 'UNBLOCK'} this account?`)) return;
+      
+      const { error } = await supabaseClient
+        .from('users')
+        .update({ is_blocked: blockStatus })
+        .eq('id', targetId);
+
+      if (!error) loadAccounts();
+    }
+
+    async function deleteUserAccount(targetId, targetUsername) {
+      if (!confirm(`Are you sure you want to PERMANENTLY DELETE user "@${targetUsername}"?`)) return;
+
+      const { error } = await supabaseClient
+        .from('users')
+        .delete()
+        .eq('id', targetId);
+
+      if (!error) loadAccounts();
+      else alert('Failed to delete user.');
+    }
+
     async function openChatWith(targetUsername) {
-      if (!currentUser || targetUsername === currentUser.username) return; // Block self messaging
+      if (!currentUser || targetUsername === currentUser.username) return;
       
       const target = registeredUsers.find(u => u.username === targetUsername);
       if (!target) return;
 
       selectedChatUser = target;
+      
+      // Clear unread count for this user
+      unreadCounts[targetUsername] = 0;
+      renderUsersList();
+
       document.getElementById('chat-target-name').textContent = target.username;
       document.getElementById('chat-target-avatar').src = getAvatar(target);
       
@@ -617,11 +683,22 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
           if (payload.eventType === 'INSERT') {
             const newM = payload.new;
-            if (
-              selectedChatUser &&
-              ((newM.sender_username === currentUser.username && newM.receiver_username === selectedChatUser.username) ||
-               (newM.sender_username === selectedChatUser.username && newM.receiver_username === currentUser.username))
-            ) {
+
+            // Check if current user is the receiver
+            if (currentUser && newM.receiver_username === currentUser.username) {
+              if (selectedChatUser && selectedChatUser.username === newM.sender_username) {
+                // Chat is open, append message
+                if (!activeMessages.some(m => m.id === newM.id)) {
+                  activeMessages.push(newM);
+                  renderMessages();
+                }
+              } else {
+                // Chat is not active, increase unread count & show badge
+                unreadCounts[newM.sender_username] = (unreadCounts[newM.sender_username] || 0) + 1;
+                renderUsersList();
+                showWebNotification(newM.sender_username, newM.content);
+              }
+            } else if (currentUser && newM.sender_username === currentUser.username && selectedChatUser && selectedChatUser.username === newM.receiver_username) {
               if (!activeMessages.some(m => m.id === newM.id)) {
                 activeMessages.push(newM);
                 renderMessages();
@@ -734,6 +811,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
+      requestNotificationPermission();
 
       const savedUser = getStoredUser();
       if (savedUser) {
